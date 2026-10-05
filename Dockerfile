@@ -9,7 +9,11 @@ COPY src ./src
 
 FROM node:22-alpine
 
-RUN addgroup -g 2000 app && adduser -D -u 2000 -G app app
+# node:22-alpine ships npm 10.9.9, which bundles sigstore 3.1.0 (CVE-2026-48815).
+# npm 12.2.0 bundles sigstore 5.0.0.
+RUN npm install -g npm@12.2.0 \
+ && npm cache clean --force \
+ && addgroup -g 2000 app && adduser -D -u 2000 -G app app
 
 WORKDIR /app
 
