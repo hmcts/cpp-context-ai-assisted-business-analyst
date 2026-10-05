@@ -1,0 +1,54 @@
+name: CI Build and Publish – Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci-release:
+    # Releases run on the published tag; manual dispatch is restricted to main.
+    if: ${{ github.event_name == 'release' || github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/ci-build-publish.yml
+    with:
+      environment: dev
+      is_release: ${{ github.event_name == 'release' }}
+      trigger_docker: true
+
+  update-release-notes:
+    needs: [ci-release]
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Append image coordinates to release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          GHCR_REF="ghcr.io/${REPO}:${VERSION}"
+          MARKER="<!-- image-coordinates -->"
+
+          BODY="$(gh release view "$TAG" --repo "$REPO" --json body -q .body)"
+          if printf '%s' "$BODY" | grep -qF "$MARKER"; then
+            echo "Image coordinates already present; skipping."
+            exit 0
+          fi
+
+          {
+            printf '%s\n' "$BODY"
+            printf '\n%s\n' "$MARKER"
+            printf '## Container image\n\n'
+            printf '**GHCR (built by this workflow):**\n`%s`\n' "$GHCR_REF"
+          } | gh release edit "$TAG" --repo "$REPO" --notes-file -
+          echo "Appended image coordinates to release $TAG."

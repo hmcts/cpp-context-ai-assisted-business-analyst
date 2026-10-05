@@ -1,0 +1,27 @@
+name: Build and Publish (Non-Release)
+
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+      - 'team/**'
+  push:
+    branches:
+      - master
+      - main
+      - 'team/**'
+
+permissions:
+  contents: read
+
+jobs:
+  ci-draft:
+    # The called workflow's Build-Docker job pushes to ghcr.io with GITHUB_TOKEN.
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/ci-build-publish.yml
+    with:
+      environment: dev
+      trigger_docker: ${{ github.event_name == 'push' }}

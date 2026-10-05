@@ -15,23 +15,30 @@ Health check: `http://localhost:4550/cpp-context-ai-assisted-business-analyst/he
 
 Page: `http://localhost:4550/cpp-context-ai-assisted-business-analyst/`
 
-## Pipeline
+## Workflow
 
-`azure-pipelines.yaml` follows the other context pipelines: pull requests run `ContextVerify`, and a push to `main` or `team/*` publishes the image.
+GitHub Actions follow `service-cp-crime-hearing-results-validator`:
 
-The shared Java `context-validation` template is not used. That template builds a Maven WildFly image. This service publishes `Dockerfile` through `pipelines/image-publish.yaml` in `cpp-azure-devops-templates`.
+| File | When it runs |
+|------|----------------|
+| `.github/workflows/ci-draft.yml` | Pull request or push to `main` or `team/**` |
+| `.github/workflows/ci-released.yml` | Published release, or a manual run from `main` |
+| `.github/workflows/ci-build-publish.yml` | Shared jobs: version, `npm test`, Docker image |
 
-Image:
+A pull request runs the tests only. A push also builds `Dockerfile` and pushes:
 
 ```
-crmdvrepo01.azurecr.io/hmcts/cpp-context-ai-assisted-business-analyst:<short-sha>
-crmdvrepo01.azurecr.io/hmcts/cpp-context-ai-assisted-business-analyst:latest
+ghcr.io/hmcts/cpp-context-ai-assisted-business-analyst:<version>
 ```
+
+Version rules match the results validator. A release uses the tag. A `team/**` branch uses `<branch>-<short-sha>`. `main` uses `<package.json version>-<short-sha>`.
+
+The results-validator deploy step calls Azure DevOps pipeline 460, which wraps a published JAR in a Java base image. This service has no JAR, so that step is not included. STE still pulls from `crmdvrepo01.azurecr.io`.
 
 ## AKS
 
-STE stack 20 is registered in `cpp-aks-deploy` as release `cpp-context-ai-assisted-business-analyst`, using the `springboot-app` chart on port 4550.
+STE stack 98 is registered in `cpp-aks-deploy` as release `cpp-context-ai-assisted-business-analyst`, using the `springboot-app` chart on port 4550. It is enabled in `helmsman_vars/steccm98.env`.
 
 ```
-https://steccm20.ingress01.ste.nl.cjscp.org.uk/cpp-context-ai-assisted-business-analyst/
+https://steccm98.ingress01.ste.nl.cjscp.org.uk/cpp-context-ai-assisted-business-analyst/
 ```
