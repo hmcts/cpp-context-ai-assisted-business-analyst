@@ -41,7 +41,7 @@ jobs:
           VERSION="${TAG#v}"
           REPO_NAME="${REPO##*/}"
           GHCR_REF="ghcr.io/${REPO}:${VERSION}"
-          ACR_REF="crmdvrepo01.azurecr.io/hmcts/${REPO_NAME}:${VERSION}"
+          ACR_REF="crmdvrepo01.azurecr.io/hmcts/${REPO_NAME}:${VERSION}_<YYYYMMDDHHMMSS>"
           MARKER="<!-- image-coordinates -->"
 
           BODY="$(gh release view "$TAG" --repo "$REPO" --json body -q .body)"
@@ -55,6 +55,8 @@ jobs:
             printf '\n%s\n' "$MARKER"
             printf '## Container image\n\n'
             printf '**GHCR (built by this workflow):**\n`%s`\n\n' "$GHCR_REF"
-            printf '**ACR (imported by ADO pipeline 460):**\n`%s`\n' "$ACR_REF"
+            printf '**ACR (built by ADO pipeline 460):**\n`%s`\n\n' "$ACR_REF"
+            printf '> Pipeline 460 appends the UTC timestamp when it pushes. Confirm the tag with:\n'
+            printf '> `az acr repository show-tags -n crmdvrepo01 --repository hmcts/%s`\n' "$REPO_NAME"
           } | gh release edit "$TAG" --repo "$REPO" --notes-file -
           echo "Appended image coordinates to release $TAG."

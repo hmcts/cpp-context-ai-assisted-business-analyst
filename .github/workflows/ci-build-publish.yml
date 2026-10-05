@@ -151,5 +151,8 @@ jobs:
               "ARTIFACT_VERSION": "${{ needs.Artefact-Version.outputs.artefact_version }}",
               "TARGET_REPOSITORY": "${{ github.repository }}",
               "agentDemand": "ubuntu-j25",
-              "publishMode": "image"
+              "artifactType": "docker",
+              "imageRepository": "hmcts/${{ env.REPO_NAME }}",
+              "gitRef": "${{ github.sha }}",
+              "pushToLive": "false"
             }
