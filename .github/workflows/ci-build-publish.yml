@@ -2,6 +2,9 @@ name: CI Build and Publish
 
 on:
   workflow_call:
+    secrets:
+      HMCTS_ADO_PAT:
+        required: true
     inputs:
       environment:
         required: true
@@ -12,6 +15,9 @@ on:
         type: boolean
         default: false
       trigger_docker:
+        required: true
+        type: boolean
+      trigger_deploy:
         required: true
         type: boolean
 
@@ -124,3 +130,26 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
+
+  Deploy:
+    needs: [Build-Docker, Artefact-Version]
+    if: ${{ inputs.trigger_deploy && (needs.Build-Docker.result == 'success' || needs.Build-Docker.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract repo name
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_ENV"
+
+      - name: Trigger ADO pipeline
+        uses: hmcts/trigger-ado-pipeline@5ded370558d366e7de23d69956a76e012220435d # v2
+        with:
+          pipeline_id: 460
+          ado_pat: ${{ secrets.HMCTS_ADO_PAT }}
+          template_parameters: >
+            {
+              "GROUP_ID": "uk.gov.hmcts.cp",
+              "ARTIFACT_ID": "${{ env.REPO_NAME }}",
+              "ARTIFACT_VERSION": "${{ needs.Artefact-Version.outputs.artefact_version }}",
+              "TARGET_REPOSITORY": "${{ github.repository }}",
+              "agentDemand": "ubuntu-j25",
+              "publishMode": "image"
+            }

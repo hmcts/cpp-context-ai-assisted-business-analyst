@@ -31,9 +31,13 @@ A pull request runs the tests only. A push also builds `Dockerfile` and pushes:
 ghcr.io/hmcts/cpp-context-ai-assisted-business-analyst:<version>
 ```
 
-Version rules match the results validator. A release uses the tag. A `team/**` branch uses `<branch>-<short-sha>`. `main` uses `<package.json version>-<short-sha>`.
+The same push then calls Azure DevOps pipeline 460 with `publishMode=image`. That imports the GHCR image into:
 
-The results-validator deploy step calls Azure DevOps pipeline 460, which wraps a published JAR in a Java base image. This service has no JAR, so that step is not included. STE still pulls from `crmdvrepo01.azurecr.io`.
+```
+crmdvrepo01.azurecr.io/hmcts/cpp-context-ai-assisted-business-analyst:<version>
+```
+
+Version rules match the results validator. A release uses the tag. A `team/**` branch uses `<branch>-<short-sha>`. `main` uses `<package.json version>-<short-sha>`. The repository needs the `HMCTS_CP_ADO_PAT` secret, the same secret results-validator passes into pipeline 460.
 
 ## AKS
 

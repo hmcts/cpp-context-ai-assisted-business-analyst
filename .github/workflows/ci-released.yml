@@ -16,10 +16,13 @@ jobs:
       contents: read
       packages: write
     uses: ./.github/workflows/ci-build-publish.yml
+    secrets:
+      HMCTS_ADO_PAT: ${{ secrets.HMCTS_CP_ADO_PAT }}
     with:
       environment: dev
       is_release: ${{ github.event_name == 'release' }}
       trigger_docker: true
+      trigger_deploy: true
 
   update-release-notes:
     needs: [ci-release]
@@ -36,7 +39,9 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${TAG#v}"
+          REPO_NAME="${REPO##*/}"
           GHCR_REF="ghcr.io/${REPO}:${VERSION}"
+          ACR_REF="crmdvrepo01.azurecr.io/hmcts/${REPO_NAME}:${VERSION}"
           MARKER="<!-- image-coordinates -->"
 
           BODY="$(gh release view "$TAG" --repo "$REPO" --json body -q .body)"
@@ -49,6 +54,7 @@ jobs:
             printf '%s\n' "$BODY"
             printf '\n%s\n' "$MARKER"
             printf '## Container image\n\n'
-            printf '**GHCR (built by this workflow):**\n`%s`\n' "$GHCR_REF"
+            printf '**GHCR (built by this workflow):**\n`%s`\n\n' "$GHCR_REF"
+            printf '**ACR (imported by ADO pipeline 460):**\n`%s`\n' "$ACR_REF"
           } | gh release edit "$TAG" --repo "$REPO" --notes-file -
           echo "Appended image coordinates to release $TAG."
