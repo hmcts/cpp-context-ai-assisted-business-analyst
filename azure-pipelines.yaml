@@ -1,0 +1,59 @@
+name: CPP Context Verify & Validation
+
+trigger:
+  branches:
+    include:
+      - main
+      - 'team/*'
+    exclude:
+      - 'dev/release-*'
+  paths:
+    include:
+    - '*'
+
+pr:
+  - '*'
+
+resources:
+  repositories:
+    - repository: cppAzureDevOpsTemplates
+      type: github
+      name: hmcts/cpp-azure-devops-templates
+      endpoint: 'hmcts'
+      ref: 'main'
+
+pool:
+  name: "MDV-ADO-AGENT-AKS-01"
+  demands:
+    - identifier -equals centos8-j17
+
+variables:
+  service_Name: 'cpp-context-ai-assisted-business-analyst'
+  imageRepository: 'hmcts/cpp-context-ai-assisted-business-analyst'
+
+stages:
+  - stage: ContextVerify
+    jobs:
+      - job: RunVerification
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            displayName: Use Node.js 22
+            inputs:
+              versionSpec: '22.x'
+
+          - script: |
+              set -euo pipefail
+              npm install
+              npm test
+            displayName: npm test
+
+  # Java contexts call pipelines/context-validation.yaml, which deploys a Maven
+  # artifact onto WildFly. This service is Fastify, so CI publishes the
+  # Dockerfile with the shared image-publish stage instead.
+  - ${{ if eq(variables['Build.Reason'], 'IndividualCI') }}:
+      - template: pipelines/image-publish.yaml@cppAzureDevOpsTemplates
+        parameters:
+          RUN_RELEASE: true
+          serviceName: ${{ variables.service_Name }}
