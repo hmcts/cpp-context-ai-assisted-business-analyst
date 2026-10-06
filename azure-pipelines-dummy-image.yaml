@@ -1,0 +1,54 @@
+# Manual size test. Publishes only the dummy-1.5gb tag.
+# Does not run on push, and does not move the tag deployed to STE98.
+trigger: none
+pr: none
+
+pool:
+  name: MDV-ADO-AGENT-AKS-01
+  demands:
+    - identifier -equals ubuntu-j25
+
+variables:
+  acr_url: crmdvrepo01.azurecr.io
+  image_ref: crmdvrepo01.azurecr.io/hmcts/cpp-context-ai-assisted-business-analyst:dummy-1.5gb
+
+steps:
+  - checkout: self
+
+  - task: Docker@2
+    displayName: Login to non-live ACR
+    inputs:
+      command: login
+      containerRegistry: Acr_non_live_registryConnection
+
+  - script: |
+      set -euo pipefail
+      builder="docker-dummy-$(Build.BuildId)"
+      docker buildx create --name "$builder" --driver kubernetes \
+        --driver-opt "image=$(acr_url)/hmcts/buildkit:1.0.0,annotations=sidecar.istio.io/proxyMemory=1.5Gi" \
+        --buildkitd-flags '--allow-insecure-entitlement network.host'
+      docker buildx build --builder "$builder" --platform linux/amd64 \
+        --allow network.host --network host --progress plain --push \
+        -f Dockerfile.dummy -t "$(image_ref)" .
+    displayName: Build and push 1.5GiB dummy image
+
+  - script: |
+      docker buildx rm "docker-dummy-$(Build.BuildId)" || true
+    displayName: Remove buildx builder
+    condition: always()
+
+  - task: AzureCLI@2
+    displayName: Show published image size
+    condition: succeeded()
+    inputs:
+      azureSubscription: ado_nonlive_workload_identity
+      scriptType: bash
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true
+      inlineScript: |
+        set -euo pipefail
+        az acr repository show-manifests \
+          --name crmdvrepo01 \
+          --repository hmcts/cpp-context-ai-assisted-business-analyst \
+          --detail -o json \
+        | python3 -c 'import json,sys; rows=json.load(sys.stdin); print(json.dumps([{"tags": r.get("tags"), "imageSize": r.get("imageSize")} for r in rows if "dummy-1.5gb" in (r.get("tags") or [])], indent=2))'

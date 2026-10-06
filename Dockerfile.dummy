@@ -1,0 +1,6 @@
+FROM alpine:3.20
+
+# Incompressible payload so the registry stores about 1.5GiB.
+RUN dd if=/dev/urandom of=/dummy.bin bs=1M count=1536 && ls -lh /dummy.bin
+
+CMD ["sleep", "infinity"]
